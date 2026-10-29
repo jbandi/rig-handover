@@ -1,0 +1,47 @@
+# Plan morning-digest, sections 3 and 4. Publishes the digest preview to GitHub Pages.
+# The HTML is built here and shipped as a Pages artifact, never committed (ADR 0003).
+# Run with marker=true for the review, then marker=false to upload over the same link.
+name: preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      marker:
+        description: Show the lane marker (LANE_MARKER secret) in the banner
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}digest-2026-10-28.html
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Save /digest/2026-10-28
+        env:
+          LANE_ID: lane-07
+          LANE_MARKER: ${{ inputs.marker && secrets.LANE_MARKER || '' }}
+        run: pnpm save-page /digest/2026-10-28 _site/digest-2026-10-28.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+          retention-days: 1
+      - id: deployment
+        uses: actions/deploy-pages@v4
